@@ -8,6 +8,7 @@ import (
 	"os"
 	"database/sql"
 	"fmt"
+	"github.com/joho/godotenv"
 	"github.com/Bention99/chirpy/internal/database"
 )
 
@@ -17,6 +18,10 @@ type apiConfig struct {
 }
 
 func main() {
+	err := godotenv.Load()
+    if err != nil {
+        log.Println("could not load .env:", err)
+    }
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -41,6 +46,8 @@ func main() {
 
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+
+	mux.HandleFunc("POST /api/users", apiCfg.handlerNewUser)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
