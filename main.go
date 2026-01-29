@@ -15,6 +15,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db *database.Queries
+	env string
 }
 
 func main() {
@@ -23,6 +24,7 @@ func main() {
         log.Println("could not load .env:", err)
     }
 	dbURL := os.Getenv("DB_URL")
+	dbEnv := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("Error connection to the Database: %v", err)
@@ -35,6 +37,7 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db: dbQueries,
+		env: dbEnv,
 	}
 
 	mux := http.NewServeMux()

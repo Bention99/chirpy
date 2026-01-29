@@ -1,9 +1,19 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+	"fmt"
+	)
 
 func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
-	cfg.fileserverHits.Store(0)
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Hits reset to 0"))
+	if cfg.env != "dev" {
+		respondWithError(w, http.StatusForbidden, "Can't reset DB outside of dev environment\n", nil)
+    	return
+	}
+	err := cfg.db.DeleteAllUsers(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't reset Database\n", err)
+    	return
+	}
+	fmt.Println("Reset sucessfull")
 }
