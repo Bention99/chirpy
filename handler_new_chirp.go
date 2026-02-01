@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
+	"github.com/google/uuid"
+	"github.com/Bention99/chirpy/internal/database"
 )
 
 type parameters struct {
 	Body string `json:"body"`
+	UID uuid.UUID `json:"user_id"`
 }
 
 type returnVals struct {
@@ -15,7 +19,15 @@ type returnVals struct {
 	CleanedBody string `json:"cleaned_body"`
 }
 
-func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
+type createdChirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body     	string 	`json:"body"`
+	UserID	uuid.UUID	`json:"user_id"`
+}
+
+func (cfg *apiConfig) handlerNewChirp(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
@@ -32,9 +44,23 @@ func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 
 	params = wordReplacer(params)
 
-	respondWithJSON(w, http.StatusOK, returnVals{
-		Valid: true,
-		CleanedBody: params.Body,
+	chirpParams := database.CreateChirpParams{
+		Body: params.Body,
+		UserID: params.UID,
+	}
+
+	chirp, err := cfg.db.CreateChirp(r.Context(), chirpParams)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create chirp", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, createdChirp{
+		ID: chirp.ID,
+		CreatedAt: chirp.CreatedAt.Time,
+		UpdatedAt: chirp.CreatedAt.Time,
+		Body: chirp.Body,
+		UserID: chirp.UserID,
 	})
 }
 
