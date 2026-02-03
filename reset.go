@@ -15,5 +15,5 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't reset Database\n", err)
     	return
 	}
-	fmt.Println("Reset sucessfull")
+	fmt.Println("Reset successful")
 }

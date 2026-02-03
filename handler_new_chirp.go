@@ -7,6 +7,7 @@ import (
 	"time"
 	"github.com/google/uuid"
 	"github.com/Bention99/chirpy/internal/database"
+	"github.com/Bention99/chirpy/internal/auth"
 )
 
 type parameters struct {
@@ -36,6 +37,18 @@ func (cfg *apiConfig) handlerNewChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "No bearer Token found", err)
+		return
+	}
+
+	uID, err := auth.ValidateJWT(bearerToken, cfg.secret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Incorrect bearer Token", err)
+		return
+	}
+
 	const maxChirpLength = 140
 	if len(params.Body) > maxChirpLength {
 		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
@@ -46,7 +59,7 @@ func (cfg *apiConfig) handlerNewChirp(w http.ResponseWriter, r *http.Request) {
 
 	chirpParams := database.CreateChirpParams{
 		Body: params.Body,
-		UserID: params.UID,
+		UserID: uID,
 	}
 
 	chirp, err := cfg.db.CreateChirp(r.Context(), chirpParams)

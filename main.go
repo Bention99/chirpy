@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db *database.Queries
 	env string
+	secret string
 }
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
     }
 	dbURL := os.Getenv("DB_URL")
 	dbEnv := os.Getenv("PLATFORM")
+	jwtSecret := os.Getenv("SECRET")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("Error connection to the Database: %v", err)
@@ -38,6 +40,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db: dbQueries,
 		env: dbEnv,
+		secret: jwtSecret,
 	}
 
 	mux := http.NewServeMux()
