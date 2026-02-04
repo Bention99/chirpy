@@ -6,12 +6,12 @@ import (
 	"time"
 	"github.com/google/uuid"
 	"github.com/Bention99/chirpy/internal/auth"
+	"github.com/Bention99/chirpy/internal/database"
 )
 
 type validateParams struct {
 	Email string `json:"email"`
 	Password string `json:"password"`
-	ExpiresInSeconds int `json:"expires_in_seconds"`
 }
 
 type RespondWithUser struct {
@@ -20,6 +20,7 @@ type RespondWithUser struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
 	Token	string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
@@ -30,12 +31,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
         respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
     	return
     }
-
-	expiresIn := time.Hour
-
-	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
-		expiresIn = time.Duration(params.ExpiresInSeconds) * time.Second
-	}
 
 	u, err := cfg.db.GetUserByEMail(r.Context(), params.Email)
 	if err != nil {
@@ -48,11 +43,25 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 
-	jwtToken, err := auth.MakeJWT(u.ID, cfg.secret, expiresIn)
+	jwtToken, err := auth.MakeJWT(u.ID, cfg.secret, time.Hour)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create JWT", err)
 		return 
 	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create Refresh Token", err)
+		return 
+	}
+
+	expiresAt := time.Now().UTC().Add(60 * 24 * time.Hour)
+
+	refreshTokenEntry, err := cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token: refreshToken,
+		UserID: u.ID,
+		ExpiresAt: expiresAt,
+	})
 
 	respondWithJSON(w, http.StatusOK, RespondWithUser{
 		ID: u.ID,
@@ -60,5 +69,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: u.CreatedAt.Time,
 		Email: u.Email,
 		Token: jwtToken,
+		RefreshToken: refreshTokenEntry.Token,
 	})
 }
