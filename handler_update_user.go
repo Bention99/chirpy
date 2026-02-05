@@ -3,30 +3,32 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"time"
-	"github.com/google/uuid"
 	"github.com/Bention99/chirpy/internal/auth"
 	"github.com/Bention99/chirpy/internal/database"
 )
 
-type createUserParams struct {
+type updateParams struct {
 	Email string `json:"email"`
 	Password string `json:"password"`
 }
 
-type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	IsChirpyRed bool	`json:"is_chirpy_red"`
-}
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "No Bearer Token found", err)
+		return
+	}
 
-func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
+	uID, err := auth.ValidateJWT(bearerToken, cfg.secret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Incorrect bearer Token", err)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 
-    params := createUserParams{}
-    err := decoder.Decode(&params)
+    params := updateParams{}
+    err = decoder.Decode(&params)
     if err != nil {
         respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
     	return
@@ -38,16 +40,17 @@ func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 
-	u, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+	u, err := cfg.db.UpdateUser(r.Context(), database.UpdateUserParams{
         Email:          params.Email,
         HashedPassword: hashedPW,
+		ID:				uID,
     })
 	if err != nil {
         respondWithError(w, http.StatusInternalServerError, "Couldn't create user", err)
         return
     }
 
-	respondWithJSON(w, http.StatusCreated, User{
+	respondWithJSON(w, http.StatusOK, User{
 		ID: u.ID,
 		CreatedAt: u.CreatedAt.Time,
 		UpdatedAt: u.UpdatedAt.Time,
